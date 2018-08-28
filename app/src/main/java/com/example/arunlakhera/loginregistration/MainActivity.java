@@ -17,6 +17,7 @@ import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.auth.ActionCodeSettings;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     String email;
     String password;
     String userId;
+    Boolean emailVerified;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
                             // Sign in success, update UI with the signed-in user's information
                             Log.d(TAG, "Sign In Successful");
                             updateDatabase();
+
                             Intent signUpIntent = new Intent(MainActivity.this, ProfileActivity.class);
                             signUpIntent.putExtra("userEmail", email);
                             startActivity(signUpIntent);
@@ -139,8 +142,7 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             // If sign in fails, display a message to the user.
                             Log.w(TAG, "Sign In failed", task.getException());
-
-                            Toast.makeText(getApplicationContext(), "Sign in Error Occurred", Toast.LENGTH_LONG).show();
+                            showToast("Sign in Error Occurred");
                         }
 
                     }
@@ -159,26 +161,16 @@ public class MainActivity extends AppCompatActivity {
         password = String.valueOf(password_EditText.getText());
 
         if (email.isEmpty()) {
-
-            // Show message if email is not provided
-            Toast.makeText(MainActivity.this, "Email ID is required for Sign Up...", Toast.LENGTH_SHORT).show();
-
-            // Set the focus to email id Field
+            showToast("Email ID is required for Sign Up...");
             emailId_EditText.requestFocus();
         }else if (!isValidEmail(email)){
 
-            // Show message if email is not in valid format
-            Toast.makeText(MainActivity.this, "Please enter a Valid Email ID...", Toast.LENGTH_SHORT).show();
-
-            // Set the focus to email id Field
+            showToast("Please enter a Valid Email ID...");
             emailId_EditText.requestFocus();
 
         }else if (password.isEmpty()) {
 
-            // Show message if password is not provided
-            Toast.makeText(MainActivity.this, "Please enter a Password...", Toast.LENGTH_SHORT).show();
-
-            // Set the focus to Password Field
+            showToast("Please enter a Password...");
             emailId_EditText.requestFocus();
 
         }else{
@@ -190,12 +182,19 @@ public class MainActivity extends AppCompatActivity {
                         public void onComplete(@NonNull Task<AuthResult> task) {
                             if (task.isSuccessful()) {
 
-                                // Call function to move user to next screen on successful Sign In
-                                // Sign up success, take signed-up user's information to home activity
-                                Intent signUpIntent = new Intent(MainActivity.this, ProfileActivity.class);
-                                signUpIntent.putExtra("userEmail", email);
-                                startActivity(signUpIntent);
-                                finish();
+                                emailVerified = user.isEmailVerified();
+
+                                if(emailVerified){
+                                    // Call function to move user to next screen on successful Sign In
+                                    // Sign up success, take signed-up user's information to home activity
+                                    Intent signUpIntent = new Intent(MainActivity.this, ProfileActivity.class);
+                                    signUpIntent.putExtra("userEmail", email);
+                                    startActivity(signUpIntent);
+                                    finish();
+
+                                }else {
+                                    showToast("Sign In-Please verify your email ID by clicking on the Verification link sent to " + user.getEmail());
+                                }
 
                             } else {
 
@@ -223,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
                                     err += task.getException().getLocalizedMessage();
                                 }
 
-                                Toast.makeText(MainActivity.this, err ,Toast.LENGTH_SHORT).show();
+                                showToast(err);
 
                             }
 
@@ -249,9 +248,18 @@ public class MainActivity extends AppCompatActivity {
                             // Call function to update the Firebase Database
                             updateDatabase();
 
-                            // SignUp user
+                            // Send Link
+                            sendEmailLink();
 
-                            signUpUser();
+                            emailVerified = user.isEmailVerified();
+
+                            if(emailVerified){
+                                // SignUp user
+                                signUpUser();
+                            }else {
+
+                                showToast("To Sign Up - Please verify your email ID by clicking on the Verification link sent to " + user.getEmail());
+                            }
 
                         } else {
 
@@ -262,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
 
                             if (errorCode.equals("ERROR_EMAIL_ALREADY_IN_USE")) {
                                 err = "User already exists. You can use different Email ID to Sign Up...";
-                                Toast.makeText(MainActivity.this, err, Toast.LENGTH_SHORT).show();
+                                showToast(err);
                             }else{
                                 err = errorCode;
                             }
@@ -272,6 +280,26 @@ public class MainActivity extends AppCompatActivity {
                 });
 
     }
+
+    public void sendEmailLink(){
+
+        final FirebaseUser user = mAuth.getCurrentUser();
+
+        user.sendEmailVerification()
+                .addOnCompleteListener(this, new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+
+                        if (task.isSuccessful()) {
+                            showToast("Verification link sent to " + user.getEmail());
+                        } else {
+                            Log.e(TAG, "sendEmailVerification", task.getException());
+                            showToast("Failed to send verification email.");
+                        }
+                    }
+                });
+    }
+
     /**
      * Function to Update the Firebase Database
      */
@@ -319,12 +347,20 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-
     /**
      * Function to check if the Email Id entered is in valid format i.e contains @ and .com
      */
     private static boolean isValidEmail(String email) {
         return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches();
     }
+
+    /**
+     * Function for Toast Message
+     * */
+
+    public void showToast(String msg){
+        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+    }
+
 
 }
