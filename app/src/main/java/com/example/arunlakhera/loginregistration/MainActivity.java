@@ -32,6 +32,20 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 public class MainActivity extends AppCompatActivity {
 
     //a constant for detecting the login intent result
@@ -54,11 +68,13 @@ public class MainActivity extends AppCompatActivity {
     String password;
     String userId;
     Boolean emailVerified;
+    String userMessage = "THIS SHOULD BE DECRYPTED AND ENCRYPTED";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         FirebaseApp.initializeApp(this);
 
         //intialized the FirebaseAuth object
@@ -181,21 +197,25 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onComplete(@NonNull Task<AuthResult> task) {
                             if (task.isSuccessful()) {
-
-                                emailVerified = user.isEmailVerified();
-
-                                if(emailVerified){
+/*
+                                try {
+                                    emailVerified = user.isEmailVerified();
+                                }catch (Exception e) {
+                                    showToast("Email Verification error");
+                                }
+*/
+ //                               if(emailVerified){
                                     // Call function to move user to next screen on successful Sign In
                                     // Sign up success, take signed-up user's information to home activity
                                     Intent signUpIntent = new Intent(MainActivity.this, ProfileActivity.class);
                                     signUpIntent.putExtra("userEmail", email);
                                     startActivity(signUpIntent);
                                     finish();
-
+/*
                                 }else {
                                     showToast("Sign In-Please verify your email ID by clicking on the Verification link sent to " + user.getEmail());
                                 }
-
+*/
                             } else {
 
                                 // If sign in fails, display a message to the user.
@@ -209,8 +229,8 @@ public class MainActivity extends AppCompatActivity {
 
                                     if (errorCode.equals("ERROR_USER_NOT_FOUND")) {
                                         err += "No matching user found. Created New Account.";
-                                        newSignUp();
 
+                                        newSignUp();
 
                                     } else if (errorCode.equals("ERROR_USER_DISABLED")) {
                                         err += "User account has been disabled.";
@@ -223,15 +243,12 @@ public class MainActivity extends AppCompatActivity {
                                 }
 
                                 showToast(err);
-
                             }
-
                         }
 
                     });
-
+            }
         }
-    }
 
     /**
      * Function for New Signup
@@ -309,12 +326,18 @@ public class MainActivity extends AppCompatActivity {
         // Initialize the instance of Firebase database to get current logged in users information
         user = FirebaseAuth.getInstance().getCurrentUser();
         String userId = String.valueOf(user.getUid());
+
         // Initialize Firebase Database Instance to the table Users
         mDatabase = FirebaseDatabase.getInstance().getReference("Users");
+
+        String encryptedString = encryption(userMessage);
+        //String decryptedString = decryption("Input Encrypted String");
 
         // Save the Users information in Users table in Firebase
         mDatabase.child(userId).child("EmailId").setValue(email);
         mDatabase.child(userId).child("password").setValue(password);
+        mDatabase.child(userId).child("msg").setValue(encryptedString);
+
     }
 
     /**
@@ -362,5 +385,32 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
     }
 
+    /**
+     * Function to encrypt
+     * */
+
+    public String encryption(String strNormalText){
+        String seedValue = "YourSecKey";
+        String normalTextEnc="";
+        try {
+            normalTextEnc = AESHelper.encrypt(seedValue, strNormalText);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return normalTextEnc;
+    }
+    public String decryption(String strEncryptedText){
+        String seedValue = "YourSecKey";
+        String strDecryptedText="";
+        try {
+            strDecryptedText = AESHelper.decrypt(seedValue, strEncryptedText);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return strDecryptedText;
+    }
+
 
 }
+
+

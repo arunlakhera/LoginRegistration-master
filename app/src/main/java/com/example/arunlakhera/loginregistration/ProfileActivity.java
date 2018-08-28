@@ -26,12 +26,13 @@ public class ProfileActivity extends AppCompatActivity {
         user = FirebaseAuth.getInstance().getCurrentUser();
 
         String userEmail = userBundle.getString("userEmail","User Email");
+        String decryptedString = decryption("Input Encrypted String");
 
+        Toast.makeText(ProfileActivity.this, decryptedString, Toast.LENGTH_SHORT).show();
         TextView userEmailTextView = findViewById(R.id.textViewEmail);
 
         userEmailTextView.setText(userEmail);
     }
-
 
     /**
      * 3. Function to Show logout user
@@ -41,6 +42,17 @@ public class ProfileActivity extends AppCompatActivity {
             FirebaseAuth.getInstance().signOut();
             startActivity(new Intent(ProfileActivity.this, MainActivity.class));
             finish();
+    }
+
+    public String decryption(String strEncryptedText){
+        String seedValue = "YourSecKey";
+        String strDecryptedText="";
+        try {
+            strDecryptedText = AESHelper.decrypt(seedValue, strEncryptedText);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return strDecryptedText;
     }
 
 }
